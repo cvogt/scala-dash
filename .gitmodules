@@ -1,0 +1,3 @@
+[submodule "html/scala.github.com"]
+	path = html/scala.github.com
+	url = git@github.com:scala/scala.github.com.git
