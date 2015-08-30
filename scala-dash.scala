@@ -1,59 +1,61 @@
 import ammonite.ops._
-import play.api.libs.json._
 import java.net.URL
-import Lib._
 
 object ScalaDashDocsetBuilder{
   val docsets = Vector(
-    new VersionedDocset(
-      "slick.typesafe.com",
-      Vector("-*api/*","-*-api/*"),
-      Vector("3.0.2","3.1.0-M2","2.1.0"),
-      version => s"http://slick.typesafe.com/doc/$version/" 
-    ),
     new Docset(
       "docs.scala-lang.org",
       Vector("-*/de/*","-*/es/*","-*/fr/*","-*/ja/*","-*/ko/*","-*/pt-br/*","-*/zh-cn/*")
-    ),
-    new Docset(
-      "Ammonite"
     ){
-      override def url = "http://lihaoyi.github.io/Ammonite/"
-      override def index = "Ammonite/index.html"
-      override def selectors: Map[String,String] = Map(
-        "h1" -> "Section"
+      override def ignore = Vector(
+        "404",
+        "API",
+        "Current",
+        "Nightly",
+        "Learn",
+        "Guides & Overviews",
+        "Tutorials",
+        "Scala Style Guide",
+        "Quickref",
+        "Glossary",
+        "Cheatsheets",
+        "Contribute",
+        "Source Code",
+        "Contributors Guide",
+        "Suggestions",
+        "Other Resources",
+        "Scala Improvement Process"
       )
+    },
+    new Docset( "Ammonite" ){
+      override def url = "http://lihaoyi.github.io/Ammonite/"
       override def ignore = Vector(
         "0.4.6", "0.4.5", "0.4.4", "0.4.3", "0.4.2", "0.4.1", "0.4.0", "0.3.2", "0.3.1", "0.3.0", "0.2.9", "0.2.8", "404"
       )
-  },
-    new Docset(
-      "learning-scalaz",
-      Vector("-*/ja/*","-*/7.0/*")
-    ){
+      override def selectors = super.selectors.filterNot(_._1 == "title")
+    },
+    new VersionedDocset(
+      Vector("3.0.2","3.1.0-M2","2.1.0").map( v =>
+        new Docset( "slick.typesafe.com", Vector("-*/api/*","-*-api/*"), Some(v) ){
+          override def urlPath = s"doc/$v/" 
+          override def ignore = Vector( "[1]","[2]","[3]","[4]","[5]","[6]" )
+        }
+      )
+    ),
+    new Docset( "learning-scalaz", Vector("-*/ja/*","-*/7.0/*") ){
       override def url = "http://eed3si9n.com/learning-scalaz/Combined+Pages.html"
       override def name = "learning Scalaz"
-      override def index = "learning-scalaz/Combined+Pages.html"
+      override def index = "Combined+Pages.html"
       override def ignore = Vector("Page not found | eed3si9n")
-      override def selectors: Map[String,String] = Map(
-        "h1" -> "Section",
-        "h2" -> "Section",
-        "h3" -> "Section"
-      )
-      override def download: Unit = {
-        val _url = new URL(url)
-        rm( cwd/'temp/docsetName )
-        mkdir( cwd/'temp/docsetName )
-        %(cwd/'temp/docsetName)wget(
+      override def mirror: Unit = {
+        %(downloadFolder)wget(
           "--convert-links",
           "--page-requisites",
           "-e", "robots=off",
           url
         )
-        rm( cwd/'html/docsetName )
-        mv( cwd/'temp/docsetName/_url.getHost, cwd/'html/docsetName )
-        rm( cwd/'temp/docsetName )
       }
+      override def selectors = super.selectors.filterNot(_._1 == "title")
     }
   )
 
@@ -65,6 +67,8 @@ object ScalaDashDocsetBuilder{
           d.build
           d.feed
         }
+      case Array("download", "clean") => rm! cwd/'downloads
+      case Array("build", "clean") => rm! cwd/'docsets
       case Array("feed", "all") => docsets.foreach(_.feed)
       case Array("download", "all") => docsets.foreach(_.download)
       case Array("build", "all") => docsets.foreach(_.build)
@@ -72,11 +76,12 @@ object ScalaDashDocsetBuilder{
       case Array("download", docset) => docsets.find(_.docsetName == docset).map(_.download).getOrElse(usage)
       case Array("download", docset, version) => docsets.collect{
         case d: VersionedDocset if d.docsetName == docset => d
-      }.headOption.map(_.docsets(version).download).getOrElse(usage)
-      case Array("build", docset) => docsets.find(_.docsetName == docset).map(_.download).getOrElse(usage)
+      }.headOption.flatMap(_.docsets.find(_.version == Some(version))).map(_.download).getOrElse(usage)
+      case Array("build", docset) => docsets.find(_.docsetName == docset).map(_.build).getOrElse(usage)
       case Array("build", docset, version) => docsets.collect{
         case d: VersionedDocset if d.docsetName == docset => d
-      }.headOption.map(_.docsets(version).build).getOrElse(usage)
+      }.headOption.flatMap(_.docsets.find(_.version == Some(version))).map(_.build).getOrElse(usage)
+      case Array() => usage
     }
   }
 
@@ -108,37 +113,32 @@ trait AbstractDocset{
   def download: Unit
 }
 
-class VersionedDocset(
-  val docsetName: String,
-  httrackArguments: Vector[Shellable],
-  val versions: Vector[String],
-  versionedUrl: String => String
+final class VersionedDocset(
+  val docsets: Vector[Docset]
 ) extends AbstractDocset{
-  def docsets = versions.map(
-    version =>
-      version -> new Docset(
-        docsetName,
-        httrackArguments
-      ){
-        override def url = versionedUrl(version)
-      }
-  ).toMap
-  def download = docsets.values.map(_.download)
+  self =>
+  val docsetName = {
+    assert(docsets.sliding(2).forall{ case Seq(a,b) => a.docsetName == b.docsetName })
+    docsets.head.docsetName
+  }
+  val versions = {
+    assert(docsets.forall(_.version.isDefined))
+    docsets.flatMap(_.version)
+  }
+
+  def download = docsets.map(_.download)
   def build = {
     // reverse, so first version remains as most recent
-    versions.reverse.map{ case version =>
-      docsets(version).build
-      val dir = cwd/'archives/'versions/docsetName/version
-      mkdir(dir)
-      val target = dir/(docsetName+".tgz")
-      rm! target
-      cp(cwd/'archives/(docsetName+".tgz"), target)
-    }
+    docsets.map(_.build)
+    val latest = cwd/'docsets/(docsetName + ".tgz")
+    rm(latest)
+    mkdir(docsets.head.tarFile / RelPath.up)
+    cp(docsets.head.tarFile, latest)
   }
   def feed = {    
     val feedXml = 
 <entry>
-  <version>{versions.head}</version>
+  <version>{versions.head}/{java.time.LocalDateTime.now.toString}</version>
   <url>http://cvogt.org/releases/docsets/{docsetName}.tgz</url>
   <other-versions>{
     versions.map( v =>
@@ -147,113 +147,128 @@ class VersionedDocset(
   }</other-versions>
 </entry>
 
-      val feedFile = cwd/'archives/(docsetName++".xml")
-      rm(feedFile)
-      write(feedFile, feedXml.toString)
+      val feedFile = cwd/'docsets/(docsetName++".xml")
+      mkdir(feedFile/RelPath.up)
+      write.over(feedFile, feedXml.toString)
   }
 }
 
 class Docset(
   val docsetName: String,
-  httrackArguments: Vector[Shellable] = Vector()
+  httrackArguments: Vector[Shellable] = Vector(),
+  val version: Option[String] = None
 ) extends AbstractDocset{
-  def name = docsetName
+  def url = s"http://$docsetName/$urlPath"
+  def urlPath = ""
 
+  // dashing config
+  def name = docsetName
   def `package` = "scala"
-  def icon32x32 = docsetName ++ ".png"
   def index: String = "index.html"
+  def icon32x32 = docsetName ++ ".png"
   def selectors: Map[String,String] = Map(
     "dt a" -> "Command",
-    "title" -> "Section" // Category, Entry, Command, Element, 
+    "title" -> "Category",
+    "h1" -> "Section",
+    "h2" -> "Section",
+    "h3"  -> "Section",
+    "h4" -> "Section",
+    "h5"  -> "Section",
+    "h6" -> "Section"
   )
   def ignore: Vector[String] = Vector("ABOUT")
   def allowJs: Boolean = true
-  def url = s"http://$docsetName/"
+  
+  final val versionedDocsetName = docsetName++version.map("-"++_).getOrElse("")
+  final val downloadFolder = cwd/'downloads/versionedDocsetName
+  final def buildFolder = {
+    val _url = new URL(url)
+    val fileOrDir = downloadFolder / _url.getHost / {
+      _url.getPath match {
+        case "" | "/" => RelPath.empty
+        case path => 
+          assert(path(0) == '/')
+          RelPath(path.drop(1))
+      }
+    }
+    val info = (stat! fileOrDir)
+    if( info.isDir ){
+      fileOrDir
+    } else if(info.isFile) {
+      fileOrDir / RelPath.up
+    } else {
+      ???
+    }
+  }
+  final val tarFile = cwd / 'docsets / version.map(
+    'versions / docsetName / _
+  ).getOrElse(
+    RelPath.empty
+  ) / (docsetName + ".tgz")
+  
+  final def build = {
+    val dashingConfig = buildFolder / "dashing.json"
+    val icons = cwd/'icons
+    val logo = icons/icon32x32
+    if( exists(logo) ){
+      rm( buildFolder/icon32x32 )
+      cp( logo, buildFolder/icon32x32 )
+    } else {
+      println("[warning] no icon found for "+docsetName)
+    }
+    write.over( dashingConfig, json )
+    rm(buildFolder / (`package` ++ ".docset"))
+    %(buildFolder) dashing "build"
+    archive
+  }
 
-  def feed = {    
+  final def archive = {
+    println(tarFile)
+    mkdir( tarFile/RelPath.up )
+    rm(tarFile)
+    %(buildFolder) tar(
+      "--exclude='.DS_Store'",
+      "-cvzf",
+      tarFile,
+      `package` ++ ".docset"
+    )
+  }
+
+  final def feed = {    
     val feedXml = 
 <entry>
   <version>/{java.time.LocalDateTime.now.toString}</version>
   <url>http://cvogt.org/releases/docsets/{docsetName}.tgz</url>
 </entry>
 
-      val feedFile = cwd/'archives/(docsetName++".xml")
-      rm(feedFile)
-      write(feedFile, feedXml.toString)
+    val feedFile = cwd/'docsets/(docsetName++".xml")
+    mkdir(feedFile/RelPath.up)
+    write.over(feedFile, feedXml.toString)
   }
 
-
-  final def build = {
-    val iconTarget = cwd/'html/docsetName/icon32x32
-    try{
-      val iconSource = cwd/'logos/icon32x32
-      stat! iconSource // tests weather exists
-      rm( iconTarget )
-      cp( iconSource, iconTarget )
-    } catch {
-      case _:java.nio.file.NoSuchFileException => println("[warning] no icon found for "+docsetName)
-    }
-      //%jekyll "build"
-    val configTarget = cwd/'html/docsetName/"dashing.json"
-    rm( configTarget )
-    write( configTarget, json )
-    %(cwd/'html/docsetName) dashing 'build
-    val docsetFile = cwd/'docsets/(docsetName++".docset")
-    rm( docsetFile ) 
-    mv( cwd/'html/docsetName/(`package`++".docset"), docsetFile ) 
-    rm( configTarget )
-    rm( iconTarget )
-    archive
+  final def download: Unit = {
+    rm( downloadFolder )
+    mkdir( downloadFolder )
+    mirror
   }
 
-  def archive = {
-    val tarTarget = cwd/'archives/(docsetName++".tgz")
-    rm(tarTarget)
-    %(cwd/'docsets) tar(
-      "--exclude='.DS_Store'",
-      "-cvzf",
-      tarTarget,
-      (docsetName++".docset")
-    )
-  }
-  def json = Json.prettyPrint(
-    Json.obj(
-      "name" -> JsString(name),
-      "package" -> JsString(`package`),
-      "index" -> JsString(index),
-      "selectors" -> JsObject(selectors.mapValues(JsString(_))),
-      "ignore" -> JsArray(ignore.map(JsString(_))),
-      "icon32x32" -> JsString(icon32x32),
-      "allowJs" -> JsBoolean(allowJs)
-    )
-  )
-
-  def setup = ()
-  def cleanup = ()
-  def download: Unit = {
-    val _url = new URL(url)
-    rm( cwd/'temp/docsetName )
-    mkdir( cwd/'temp/docsetName )
-    mirror( cwd/'temp/docsetName )
-    rm( cwd/'html/docsetName )
-    mv( cwd/'temp/docsetName/_url.getHost, cwd/'html/docsetName )
-    rm( cwd/'temp/docsetName )
-  }
-  private def mirror(cwd: Path): Unit = {
+  def mirror: Unit = {
     val args = Vector[Shellable]( "--mirror", url ) ++ httrackArguments
-    %(cwd).applyDynamic("httrack")(args: _*)
+    %(downloadFolder).applyDynamic("httrack")(args: _*)
   }
-}
 
-
-object Lib{
-  /*wget(
-    "--continue",
-    "--mirror",
-    "--html-extension",
-    "--convert-links",
-    "--page-requisites",
-    "----no-parent",
-    url
-  )*/
+  private def json = {
+    import play.api.libs.json.{`package` => _,_}
+    Json.prettyPrint(
+      Json.obj(
+        "name" -> JsString(name),
+        "package" -> JsString(`package`),
+        "index" -> JsString(index),
+        "selectors" -> JsObject(selectors.mapValues(JsString(_))),
+        "ignore" -> JsArray(ignore.map(JsString(_))),
+        "icon32x32" -> JsString(icon32x32),
+        "allowJs" -> JsBoolean(allowJs)
+      )
+    )
+  }
 }
