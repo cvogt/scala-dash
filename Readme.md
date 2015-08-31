@@ -1,10 +1,10 @@
-Script to generate Dash docsets for the documentation of many Scala libraries.
+Script to generate Dash docsets for the manuals (not API docs) of many Scala libraries.
 
 Why? Offline support, fast, unified search
 
 Published as docset feeds here: http://cvogt.org/releases/docsets/
 
-Includes Slick, Spray, Play, Sbt, Ammonite, cats, leaning scalaz
+Includes Scala, Slick, Spray, Play, Sbt, Ammonite, cats, leaning scalaz
 
 To run this yourself, you need a recent version of wget that supports the --exclude argument. You also need Dashing installed (https://github.com/technosophos/dashing)
 
