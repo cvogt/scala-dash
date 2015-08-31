@@ -44,6 +44,18 @@ object ScalaDashDocsetBuilder{
       )
     },
     new VersionedDocset(
+      Vector("0.2.2").map( v =>
+        new Docset( "doobie", Vector(), Some(v) ){
+          override def url = s"http://tpolecat.github.io/doobie-$v/00-index.html"
+          override def ignore = Vector()
+          override def selectors = super.selectors.filterNot(Seq("h1","title") contains _._1).map{
+            case ("h2",value) => ("h2","Category")
+            case other => other
+          }
+        }
+      )
+    ),
+    new VersionedDocset(
       Vector("3.0.2","3.1.0-M2","2.1.0").map( v =>
         new Docset( "slick.typesafe.com", Vector(s"-X/doc/$v/api/",s"-X/doc/$v/testkit-api/",s"-X/doc/$v/codegen-api/",s"-X/doc/$v/direct-api/"), Some(v) ){
           override def urlPath = s"doc/$v/" 
