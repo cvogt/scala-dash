@@ -1,6 +1,6 @@
 Script to generate Dash docsets for the manuals (not API docs) of many Scala libraries.
 
-Why? Offline support, fast, unified search
+Why? Offline support, fast, unified search. API was already available via maven, manuals weren't.
 
 Published as docset feeds here: http://cvogt.org/releases/docsets/
 
