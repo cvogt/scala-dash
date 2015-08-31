@@ -47,6 +47,7 @@ object ScalaDashDocsetBuilder{
       Vector("0.2.2").map( v =>
         new Docset( "doobie", Vector(), Some(v) ){
           override def url = s"http://tpolecat.github.io/doobie-$v/00-index.html"
+          override def index = docsRootFolder / "00-index.html"
           override def ignore = Vector()
           override def selectors = super.selectors.filterNot(Seq("h1","title") contains _._1).map{
             case ("h2",value) => ("h2","Category")
