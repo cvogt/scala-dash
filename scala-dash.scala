@@ -3,6 +3,15 @@ import java.net.URL
 
 object ScalaDashDocsetBuilder{
   val docsets = Vector(
+    "Ammonite" -> "http://lihaoyi.github.io/Ammonite/",
+    "Fastparse" -> "http://lihaoyi.github.io/fastparse/",
+    "ScalaTags" -> "http://lihaoyi.github.io/scalatags/",
+    "Scalatex" -> "http://lihaoyi.github.io/Scalatex/",
+    "PPrint" -> "http://lihaoyi.github.io/upickle-pprint/pprint/",
+    "Hands-on-Scala.js" -> "http://lihaoyi.github.io/hands-on-scala-js/"
+  ).map{
+    case (name, _url) => new ScalatexDocset( name ){ override def url = _url }
+  } ++ Vector(
     new Docset(
       "docs.scala-lang.org",
       Vector("-X/de/","-X/es/","-X/fr/","-X/ja/","-X/ko/","-X/pt-br/","-X/zh-cn/")
@@ -27,16 +36,6 @@ object ScalaDashDocsetBuilder{
         "Scala Improvement Process"
       )
     },
-    new Docset( "Ammonite" ){
-      override def url = "http://lihaoyi.github.io/Ammonite/"
-      override def ignore = Vector(
-        "0.4.6", "0.4.5", "0.4.4", "0.4.3", "0.4.2", "0.4.1", "0.4.0", "0.3.2", "0.3.1", "0.3.0", "0.2.9", "0.2.8", "404"
-      )
-      override def selectors = super.selectors.filterNot(_._1 == "title").map{
-        case ("h2",value) => ("h2","Category")
-        case other => other
-      }
-    },
     new Docset( "cats", Vector("http://plastic-idolatry.com/erik/cats2.png", "-X/cats/api/") ){
       override def url = "http://non.github.io/cats/"
       override def ignore = Vector(
@@ -48,19 +47,19 @@ object ScalaDashDocsetBuilder{
         new Docset( "doobie", Vector(), Some(v) ){
           override def url = s"http://tpolecat.github.io/doobie-$v/00-index.html"
           override def index = docsRootFolder / "00-index.html"
-          override def ignore = Vector()
+          override def ignore = Vector( "Setting Up" )
           override def selectors = super.selectors.filterNot(Seq("h1","title") contains _._1).map{
-            case ("h2",value) => ("h2","Category")
+            case ("h2",value) => ("h2",Category)
             case other => other
           }
         }
       )
     ),
     new VersionedDocset(
-      Vector("3.0.2","3.1.0-M2","2.1.0").map( v =>
+      Vector("3.0.3","3.1.0-RC1","2.1.0").map( v =>
         new Docset( "slick.typesafe.com", Vector(s"-X/doc/$v/api/",s"-X/doc/$v/testkit-api/",s"-X/doc/$v/codegen-api/",s"-X/doc/$v/direct-api/"), Some(v) ){
           override def urlPath = s"doc/$v/" 
-          override def ignore = Vector( "[1]","[2]","[3]","[4]","[5]","[6]" )
+          override def ignore = Vector( "[1]","[2]","[3]","[4]","[5]","[6]", "Slick¶", "Search", "SQL¶", "Table Of Contents" )
         }
       )
     ),
@@ -68,6 +67,7 @@ object ScalaDashDocsetBuilder{
       Vector("1.2.3").map( v =>
         new Docset( "spray.io", Vector(), Some(v) ){
           override def urlPath = s"documentation/$v/"
+          override def ignore = Vector( "Dependencies", "Description", "Example", "Signature" )
         }
       )
     ),
@@ -108,12 +108,12 @@ object ScalaDashDocsetBuilder{
             "Community support", "Professional support"
           )
           override def selectors = super.selectors.filterNot(_._1 startsWith "h").filterNot(_._1 == "title") ++ Map(
-            "article h1" -> "Category",
-            "article h2" -> "Section",
-            "article h3"  -> "Section",
-            "article h4" -> "Section",
-            "article h5"  -> "Section",
-            "article h6" -> "Section"
+            "article h1" -> Category,
+            "article h2" -> Section,
+            "article h3"  -> Section,
+            "article h4" -> Section,
+            "article h5"  -> Section,
+            "article h6" -> Section
           )
         }
       )
@@ -124,7 +124,7 @@ object ScalaDashDocsetBuilder{
       override def index = docsRootFolder / "Combined+Pages.html"
       override def ignore = Vector("Page not found | eed3si9n")
       override def selectors = super.selectors.filterNot(_._1 == "title").filterNot(_._1 == "h1").map{
-        case ("h2",value) => ("h2","Category")
+        case ("h2",value) => ("h2",Category)
         case other => other
       }
       override val wgetArgs = {
@@ -237,6 +237,19 @@ final class VersionedDocset(
   }
 }
 
+class ScalatexDocset(name: String) extends Docset(name){
+  override def selectors = super.selectors.filterNot(_._1 == "title").map{
+    case ("h1",value) => ("h1",Entry)
+    case other => other
+  }
+  private val digits = (0 to 9).toVector
+  override def ignore = Vector("404") ++ (for{
+    i <- digits
+    j <- digits
+    k <- digits
+  } yield s"$i.$j.$k")
+}
+
 class Docset(
   val docsetName: String,
   wgetExtraArgs: Vector[Shellable] = Vector(),
@@ -260,15 +273,15 @@ class Docset(
   def `package` = "scala"
   def index: RelPath = docsRootFolder / "index.html"
   def icon32x32 = docsetName ++ ".png"
-  def selectors: Map[String,String] = Map(
-    "dt a" -> "Command",
-    "title" -> "Category",
-    "h1" -> "Section",
-    "h2" -> "Section",
-    "h3"  -> "Section",
-    "h4" -> "Section",
-    "h5"  -> "Section",
-    "h6" -> "Section"
+  def selectors: Map[String,EntryType] = Map(
+    "dt a" -> Command,
+    "title" -> Category,
+    "h1" -> Section,
+    "h2" -> Section,
+    "h3"  -> Section,
+    "h4" -> Section,
+    "h5"  -> Section,
+    "h6" -> Section
   )
   def ignore: Vector[String] = Vector("ABOUT")
   def allowJs: Boolean = true
@@ -365,7 +378,7 @@ class Docset(
         "name" -> JsString(name),
         "package" -> JsString(`package`),
         "index" -> JsString(index.toString),
-        "selectors" -> JsObject(selectors.mapValues(JsString(_))),
+        "selectors" -> JsObject(selectors.mapValues(e => JsString(e.toString))),
         "ignore" -> JsArray(ignore.map(JsString(_))),
         "icon32x32" -> JsString(icon32x32),
         "allowJs" -> JsBoolean(allowJs)
@@ -373,3 +386,80 @@ class Docset(
     )
   }
 }
+
+sealed trait EntryType
+case object Annotation extends EntryType
+case object Attribute extends EntryType
+case object Binding extends EntryType
+case object Builtin extends EntryType
+case object Callback extends EntryType
+case object Category extends EntryType
+case object Class extends EntryType
+case object Command extends EntryType
+case object Component extends EntryType
+case object Constant extends EntryType
+case object Constructor extends EntryType
+case object Define extends EntryType
+case object Delegate extends EntryType
+case object Diagram extends EntryType
+case object Directive extends EntryType
+case object Element extends EntryType
+case object Entry extends EntryType
+case object Enum extends EntryType
+case object Environment extends EntryType
+case object Error extends EntryType
+case object Event extends EntryType
+case object Exception extends EntryType
+case object Extension extends EntryType
+case object Field extends EntryType
+case object File extends EntryType
+case object Filter extends EntryType
+case object Framework extends EntryType
+case object Function extends EntryType
+case object Global extends EntryType
+case object Guidecase extends EntryType
+case object Hook extends EntryType
+case object Instance extends EntryType
+case object Instruction extends EntryType
+case object Interface extends EntryType
+case object Keyword extends EntryType
+case object Library extends EntryType
+case object Literal extends EntryType
+case object Macro extends EntryType
+case object Method extends EntryType
+case object Mixin extends EntryType
+case object Modifier extends EntryType
+case object Module extends EntryType
+case object Namespace extends EntryType
+case object Notation extends EntryType
+case object Object extends EntryType
+case object Operator extends EntryType
+case object Option extends EntryType
+case object Package extends EntryType
+case object Parameter extends EntryType
+case object Plugin extends EntryType
+case object Procedure extends EntryType
+case object Property extends EntryType
+case object Protocol extends EntryType
+case object Provider extends EntryType
+case object Provisioner extends EntryType
+case object Query extends EntryType
+case object Record extends EntryType
+case object Resource extends EntryType
+case object Sample extends EntryType
+case object Section extends EntryType
+case object Service extends EntryType
+case object Setting extends EntryType
+case object Shortcut extends EntryType
+case object Statement extends EntryType
+case object Struct extends EntryType
+case object Style extends EntryType
+case object Subroutine extends EntryType
+case object Tag extends EntryType
+case object Test extends EntryType
+case object Trait extends EntryType
+case object Type extends EntryType
+case object Union extends EntryType
+case object Value extends EntryType
+case object Variable extends EntryType
+case object Wordcase extends EntryType
