@@ -1,3 +1,5 @@
 target/
 docsets/
 downloads/
+project.sublime-project
+project.sublime-workspace
