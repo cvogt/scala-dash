@@ -1,6 +1,7 @@
 package org.cvogt.doc
 import org.cvogt.dash._
 import ammonite.ops.{Command => _,_}
+import scala.collection.immutable.ListMap
 
 object Docsets{
   val docsets = Vector(
@@ -150,6 +151,29 @@ object Docsets{
           url
         )
       }
+    },
+    new Docset( "learn-you-a-haskell", Vector() ){
+      override def url = "http://learnyouahaskell.com/chapters"
+      override def index = docsRootFolder / "chapters.html"
+      override def name = "Learn You a Haskell for Great Good!"
+      override def ignore = Vector()
+      override def selectors = ListMap(
+        "h1" -> Guide,
+        "h2" -> Section,
+        "h3" -> Section
+      )
+      override def `package` = "haskell"
+    },
+    new Docset( "wish-I-knew-haskell", Vector() ){
+      override def url = "http://dev.stephendiehl.com/hask/"
+      override def name = "What I Wish I Knew When Learning Haskell"
+      override def ignore = Vector()
+      override def selectors = ListMap(
+        "h1" -> Guide,
+        "h2" -> Section,
+        "h3" -> Section
+      )
+      override def `package` = "haskell"
     }
   )
 }

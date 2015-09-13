@@ -5,6 +5,7 @@ import java.net.URL
 import play.api.libs.json._
 import org.cvogt.play.json._
 import org.cvogt.play.json.implicits.optionWithNull
+import scala.collection.immutable.ListMap
 
 trait AbstractDocset{
   def docsetName: String
@@ -65,7 +66,9 @@ case class DashingConfig(
   ignore: Vector[String],
   icon32x32: String,
   allowJs: Boolean
-)
+){
+  require(selectors.isInstanceOf[ListMap[_,_]])
+}
 
 class Docset(
   val docsetName: String,
@@ -90,15 +93,16 @@ class Docset(
   def `package` = "scala"
   def index: RelPath = docsRootFolder / "index.html"
   def icon32x32 = docsetName ++ ".png"
-  def selectors: Map[String,SelectorTarget] =
-  (1 to 6).map("h"+_).flatMap(
+  def selectors: ListMap[String,SelectorTarget] =
+  ListMap(
+    (1 to 6).map("h"+_).flatMap(
     h => Vector(
       h+":matches(^[^a-zA-Z]+$)" -> Command,
       h+":matches(^([a-z]|[A-Z])$)" -> Shortcut,
       h+":matches(^([a-z][a-z]+|[A-Z][A-Z]+)$)" -> Command,
       h+":not(:matches(^([a-z]+|[A-Z]+|[^a-zA-Z]+)$))" -> Section
     )
-  ).toMap ++ Map(
+  ):_*) ++ ListMap(
     "dt a" -> Command,
     "title" -> Guide
   )
@@ -119,13 +123,17 @@ class Docset(
           RelPath(path.drop(1))
       }
     }
-    val info = stat! (downloadFolder / fileOrDir)
-    if( info.isDir ){
-      fileOrDir
-    } else if(info.isFile) {
-      fileOrDir / RelPath.up
+    if( exists(downloadFolder / fileOrDir) ){    
+      val info = stat! (downloadFolder / fileOrDir)
+      if( info.isDir ){
+        fileOrDir
+      } else if(info.isFile) {
+        fileOrDir / RelPath.up
+      } else {
+        ???
+      }
     } else {
-      ???
+      fileOrDir / RelPath.up
     }
   }
 
