@@ -2,6 +2,9 @@ package org.cvogt.dash
 
 import ammonite.ops._
 import java.net.URL
+import play.api.libs.json._
+import org.cvogt.play.json._
+import org.cvogt.play.json.implicits.optionWithNull
 
 trait AbstractDocset{
   def docsetName: String
@@ -54,6 +57,16 @@ final class VersionedDocset(
   }
 }
 
+case class DashingConfig(
+  name: String,
+  `package`: String,
+  index: String,
+  selectors: Map[String,SelectorTarget],
+  ignore: Vector[String],
+  icon32x32: String,
+  allowJs: Boolean
+)
+
 class Docset(
   val docsetName: String,
   wgetExtraArgs: Vector[Shellable] = Vector(),
@@ -77,15 +90,17 @@ class Docset(
   def `package` = "scala"
   def index: RelPath = docsRootFolder / "index.html"
   def icon32x32 = docsetName ++ ".png"
-  def selectors: Map[String,EntryType] = Map(
+  def selectors: Map[String,SelectorTarget] =
+  (1 to 6).map("h"+_).flatMap(
+    h => Vector(
+      h+":matches(^[^a-zA-Z]+$)" -> Command,
+      h+":matches(^([a-z]|[A-Z])$)" -> Shortcut,
+      h+":matches(^([a-z][a-z]+|[A-Z][A-Z]+)$)" -> Command,
+      h+":not(:matches(^([a-z]+|[A-Z]+|[^a-zA-Z]+)$))" -> Section
+    )
+  ).toMap ++ Map(
     "dt a" -> Command,
-    "title" -> Category,
-    "h1" -> Section,
-    "h2" -> Section,
-    "h3"  -> Section,
-    "h4" -> Section,
-    "h5"  -> Section,
-    "h6" -> Section
+    "title" -> Guide
   )
   def ignore: Vector[String] = Vector("ABOUT")
   def allowJs: Boolean = true
@@ -177,93 +192,13 @@ class Docset(
 
   private def json = {
     import play.api.libs.json.{`package` => _,_}
-    Json.prettyPrint(
-      Json.obj(
-        "name" -> JsString(name),
-        "package" -> JsString(`package`),
-        "index" -> JsString(index.toString),
-        "selectors" -> JsObject(selectors.mapValues(e => JsString(e.toString))),
-        "ignore" -> JsArray(ignore.map(JsString(_))),
-        "icon32x32" -> JsString(icon32x32),
-        "allowJs" -> JsBoolean(allowJs)
-      )
+    val config = DashingConfig(
+      name, `package`, index.toString, selectors, ignore, icon32x32, allowJs
     )
+    Json.prettyPrint( Json.toJson( config ) )
   }
 }
 
-sealed trait EntryType
-case object Annotation extends EntryType
-case object Attribute extends EntryType
-case object Binding extends EntryType
-case object Builtin extends EntryType
-case object Callback extends EntryType
-case object Category extends EntryType
-case object Class extends EntryType
-case object Command extends EntryType
-case object Component extends EntryType
-case object Constant extends EntryType
-case object Constructor extends EntryType
-case object Define extends EntryType
-case object Delegate extends EntryType
-case object Diagram extends EntryType
-case object Directive extends EntryType
-case object Element extends EntryType
-case object Entry extends EntryType
-case object Enum extends EntryType
-case object Environment extends EntryType
-case object Error extends EntryType
-case object Event extends EntryType
-case object Exception extends EntryType
-case object Extension extends EntryType
-case object Field extends EntryType
-case object File extends EntryType
-case object Filter extends EntryType
-case object Framework extends EntryType
-case object Function extends EntryType
-case object Global extends EntryType
-case object Guidecase extends EntryType
-case object Hook extends EntryType
-case object Instance extends EntryType
-case object Instruction extends EntryType
-case object Interface extends EntryType
-case object Keyword extends EntryType
-case object Library extends EntryType
-case object Literal extends EntryType
-case object Macro extends EntryType
-case object Method extends EntryType
-case object Mixin extends EntryType
-case object Modifier extends EntryType
-case object Module extends EntryType
-case object Namespace extends EntryType
-case object Notation extends EntryType
-case object Object extends EntryType
-case object Operator extends EntryType
-case object Option extends EntryType
-case object Package extends EntryType
-case object Parameter extends EntryType
-case object Plugin extends EntryType
-case object Procedure extends EntryType
-case object Property extends EntryType
-case object Protocol extends EntryType
-case object Provider extends EntryType
-case object Provisioner extends EntryType
-case object Query extends EntryType
-case object Record extends EntryType
-case object Resource extends EntryType
-case object Sample extends EntryType
-case object Section extends EntryType
-case object Service extends EntryType
-case object Setting extends EntryType
-case object Shortcut extends EntryType
-case object Statement extends EntryType
-case object Struct extends EntryType
-case object Style extends EntryType
-case object Subroutine extends EntryType
-case object Tag extends EntryType
-case object Test extends EntryType
-case object Trait extends EntryType
-case object Type extends EntryType
-case object Union extends EntryType
-case object Value extends EntryType
-case object Variable extends EntryType
-case object Wordcase extends EntryType
+object DashingConfig{
+  implicit val jsonFormat: Format[DashingConfig] = Json.format[DashingConfig]
+}
