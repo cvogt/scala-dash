@@ -27,13 +27,13 @@ object OfflineDocsBuilder{
       case Array("build", docset, version) => docsets.collect{
         case d: VersionedDocset if d.docsetName == docset => d
       }.headOption.flatMap(_.docsets.find(_.version == Some(version))).map(_.build).getOrElse(usage)
-      case Array() => usage
+      case _ => usage
     }
   }
 
   def usage = println(s"""
 USAGE:
-sbt run <command> [<docset> [<version>]] 
+sbt run <command> <docset> [<version>]]
 
 supported <command>s
 
