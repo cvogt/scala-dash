@@ -44,7 +44,7 @@ object Docsets{
       }
     },
     new Docset( "cats", Vector("http://plastic-idolatry.com/erik/cats2.png", "-X/cats/api/") ){
-      override def url = "http://non.github.io/cats/"
+      override def url = "http://typelevel.org/cats/"
       override def ignore = Vector(
         "Cats", "Page not found · GitHub Pages", "404", "useful links"
       )
