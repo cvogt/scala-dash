@@ -1,4 +1,4 @@
-Docset feeds: http://cvogt.org/releases/docsets/
+Docset feeds: https://github.com/cvogt/cvogt.github.io/tree/master/releases/docsets (use Raw view of xml files to add them)
 
 Script to generate Dash docsets for the manuals (not API docs) of many Scala libraries.
 
