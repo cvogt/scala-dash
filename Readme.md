@@ -1,6 +1,6 @@
 Docset feeds: https://github.com/cvogt/cvogt.github.io/tree/master/releases/docsets (use Raw view of xml files to add them)
 
-Script to generate Dash docsets for the manuals (not API docs) of many Scala libraries.
+Script to generate Dash docsets for the manuals (not API docs) of many Scala libraries. For API docs, try [sbt-dash](https://github.com/jastice/sbt-dash).
 
 Why? Offline support, fast, unified search. API was already available via maven, manuals weren't.
 
